@@ -5,10 +5,12 @@
 @section('content')
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold text-gray-800">Peminjaman</h2>
-        <button onclick="openModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition">
-            <i class="fas fa-plus"></i>
-            <span>Ajukan Peminjaman</span>
-        </button>
+        @if(auth()->user()->level == 'admin' || auth()->user()->level == 'peminjam')
+            <button onclick="openModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition">
+                <i class="fas fa-plus"></i>
+                <span>Ajukan Peminjaman</span>
+            </button>
+        @endif
     </div>
 
     <!-- Success Message -->
@@ -18,6 +20,17 @@
             <button onclick="this.parentElement.remove()" class="text-green-700 hover:text-green-900">
                 <i class="fas fa-times"></i>
             </button>
+        </div>
+    @endif
+
+    <!-- Error Messages -->
+    @if($errors->any())
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <ul class="list-disc list-inside">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 
@@ -38,31 +51,39 @@
             <tbody class="bg-white divide-y divide-gray-200">
                 @forelse($peminjaman as $item)
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $item['alat'] }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item['peminjam'] }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $item['jumlah'] }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ date('d/m/Y', strtotime($item['tgl_pinjam'])) }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ date('d/m/Y', strtotime($item['jatuh_tempo'])) }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $item->alat->nama_alat ?? '-' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->user->username ?? '-' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $item->jumlah }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->tanggal_peminjaman->format('d/m/Y') }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item->tanggal_kembali_rencana->format('d/m/Y') }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                @if($item['status'] == 'Dipinjam') bg-blue-100 text-blue-800
-                                @elseif($item['status'] == 'Dikembalikan') bg-green-100 text-green-800
-                                @else bg-red-100 text-red-800
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full capitalize
+                                @if($item->status == 'disetujui') bg-green-100 text-green-800
+                                @elseif($item->status == 'dikembalikan') bg-blue-100 text-blue-800
+                                @elseif($item->status == 'ditolak') bg-red-100 text-red-800
+                                @else bg-yellow-100 text-yellow-800
                                 @endif">
-                                {{ $item['status'] }}
+                                {{ $item->status }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                            <button class="text-blue-600 hover:text-blue-900" title="Detail">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <form action="{{ route('peminjaman.destroy', $item['id']) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus peminjaman ini?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-900" title="Hapus">
-                                    <i class="fas fa-trash"></i>
+                            @if(auth()->user()->level == 'admin' && $item->status == 'menunggu')
+                                <button onclick="approveModal({{ $item->peminjaman_id }})" class="text-green-600 hover:text-green-900" title="Setujui">
+                                    <i class="fas fa-check"></i>
                                 </button>
-                            </form>
+                                <button onclick="rejectModal({{ $item->peminjaman_id }})" class="text-red-600 hover:text-red-900" title="Tolak">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            @endif
+                            @if(auth()->user()->level == 'admin')
+                                <form action="{{ route('peminjaman.destroy', $item->peminjaman_id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus peminjaman ini?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-600 hover:text-red-900" title="Hapus">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            @endif
                         </td>
                     </tr>
                 @empty
@@ -91,48 +112,66 @@
             <form action="{{ route('peminjaman.store') }}" method="POST">
                 @csrf
                 
+                <!-- User ID (Hidden - Auto from logged in user or select for admin) -->
+                @if(auth()->user()->level == 'admin')
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Peminjam</label>
+                        <select name="user_id" required 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Pilih Peminjam</option>
+                            @foreach(\App\Models\User::where('level', 'peminjam')->get() as $user)
+                                <option value="{{ $user->user_id }}">{{ $user->username }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @else
+                    <input type="hidden" name="user_id" value="{{ auth()->id() }}">
+                @endif
+
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Alat</label>
-                    <select name="alat" required 
+                    <select name="alat_id" id="alat_select" required 
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Pilih Alat</option>
-                        <option value="Laptop Dell">Laptop Dell</option>
-                        <option value="Kamera DSLR Canon">Kamera DSLR Canon</option>
-                        <option value="Bor Listrik Bosch">Bor Listrik Bosch</option>
-                        <option value="Proyektor Epson">Proyektor Epson</option>
+                        @foreach(\App\Models\Alat::where('stok_tersedia', '>', 0)->get() as $alat)
+                            <option value="{{ $alat->alat_id }}" data-max="{{ $alat->stok_tersedia }}">
+                                {{ $alat->nama_alat }} (Tersedia: {{ $alat->stok_tersedia }})
+                            </option>
+                        @endforeach
                     </select>
                 </div>
 
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Peminjam</label>
-                    <input type="text" name="peminjam" required 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Nama peminjam">
-                </div>
-
-                <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Jumlah</label>
-                    <input type="number" name="jumlah" min="1" required 
+                    <input type="number" id="jumlah_input" name="jumlah" min="1" required 
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Jumlah yang dipinjam">
+                    <p id="stok_info" class="text-xs text-gray-500 mt-1"></p>
                 </div>
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Tanggal Pinjam</label>
-                    <input type="date" name="tgl_pinjam" required 
+                    <input type="date" name="tanggal_peminjaman" required 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Jatuh Tempo</label>
+                    <input type="date" name="tanggal_kembali_rencana" required 
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
                 <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Jatuh Tempo</label>
-                    <input type="date" name="jatuh_tempo" required 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Tujuan Peminjaman</label>
+                    <textarea name="tujuan_peminjaman" rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Untuk keperluan..."></textarea>
                 </div>
 
                 <div class="flex space-x-2">
                     <button type="submit" 
                         class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg transition">
-                        Simpan
+                        Ajukan
                     </button>
                     <button type="button" onclick="closeModal()" 
                         class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg transition">
@@ -150,6 +189,81 @@
 
         function closeModal() {
             document.getElementById('peminjamanModal').classList.add('hidden');
+        }
+
+        // Update max jumlah berdasarkan alat yang dipilih
+        document.getElementById('alat_select').addEventListener('change', function() {
+            const selected = this.options[this.selectedIndex];
+            const maxStok = selected.getAttribute('data-max');
+            const jumlahInput = document.getElementById('jumlah_input');
+            const stokInfo = document.getElementById('stok_info');
+            
+            if (maxStok) {
+                jumlahInput.max = maxStok;
+                stokInfo.textContent = `Maksimal: ${maxStok} unit`;
+            } else {
+                jumlahInput.max = '';
+                stokInfo.textContent = '';
+            }
+        });
+
+        function approveModal(id) {
+            if (confirm('Setujui peminjaman ini?')) {
+                // Create form and submit
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/peminjaman/' + id;
+                
+                const csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = '_token';
+                csrf.value = '{{ csrf_token() }}';
+                
+                const method = document.createElement('input');
+                method.type = 'hidden';
+                method.name = '_method';
+                method.value = 'PUT';
+                
+                const status = document.createElement('input');
+                status.type = 'hidden';
+                status.name = 'status';
+                status.value = 'disetujui';
+                
+                form.appendChild(csrf);
+                form.appendChild(method);
+                form.appendChild(status);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function rejectModal(id) {
+            if (confirm('Tolak peminjaman ini?')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/peminjaman/' + id;
+                
+                const csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = '_token';
+                csrf.value = '{{ csrf_token() }}';
+                
+                const method = document.createElement('input');
+                method.type = 'hidden';
+                method.name = '_method';
+                method.value = 'PUT';
+                
+                const status = document.createElement('input');
+                status.type = 'hidden';
+                status.name = 'status';
+                status.value = 'ditolak';
+                
+                form.appendChild(csrf);
+                form.appendChild(method);
+                form.appendChild(status);
+                document.body.appendChild(form);
+                form.submit();
+            }
         }
 
         // Close modal when clicking outside

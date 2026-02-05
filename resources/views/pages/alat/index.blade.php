@@ -1,20 +1,36 @@
 @extends('layouts.app')
 
-@section('title', 'CRUD Alat')
+@section('title', 'Daftar Alat')
 
 @section('content')
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold text-gray-800">Daftar Alat</h2>
-        <button onclick="openModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition">
-            <i class="fas fa-plus"></i>
-            <span>Tambah Alat</span>
-        </button>
+        @if(auth()->user()->level == 'admin')
+            <button onclick="openModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition">
+                <i class="fas fa-plus"></i>
+                <span>Tambah Alat</span>
+            </button>
+        @endif
     </div>
 
     <!-- Success Message -->
     @if(session('success'))
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            {{ session('success') }}
+        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 flex justify-between items-center">
+            <span>{{ session('success') }}</span>
+            <button onclick="this.parentElement.remove()" class="text-green-700 hover:text-green-900">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    @endif
+
+    <!-- Error Messages -->
+    @if($errors->any())
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <ul class="list-disc list-inside">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 
@@ -25,44 +41,50 @@
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Alat</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kode Alat</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stok Total</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tersedia</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kondisi</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                    @if(auth()->user()->level == 'admin')
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                    @endif
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 @forelse($alats as $alat)
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $alat['nama_alat'] }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $alat['kategori'] }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $alat['jumlah'] }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $alat['tersedia'] }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $alat->nama_alat }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $alat->kategori->nama_kategori ?? '-' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $alat->kode_alat }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $alat->stok_total }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $alat->stok_tersedia }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                @if($alat['kondisi'] == 'Baik') bg-green-100 text-green-800
-                                @elseif($alat['kondisi'] == 'Rusak Ringan') bg-yellow-100 text-yellow-800
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize
+                                @if($alat->kondisi == 'baik') bg-green-100 text-green-800
+                                @elseif($alat->kondisi == 'rusak') bg-yellow-100 text-yellow-800
                                 @else bg-red-100 text-red-800
                                 @endif">
-                                {{ $alat['kondisi'] }}
+                                {{ $alat->kondisi }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                            <button class="text-blue-600 hover:text-blue-900">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <form action="{{ route('alat.destroy', $alat['id']) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus alat ini?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-900">
-                                    <i class="fas fa-trash"></i>
+                        @if(auth()->user()->level == 'admin')
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                <button onclick="editAlat({{ $alat->alat_id }}, {{ json_encode($alat) }})" class="text-blue-600 hover:text-blue-900">
+                                    <i class="fas fa-edit"></i>
                                 </button>
-                            </form>
-                        </td>
+                                <form action="{{ route('alat.destroy', $alat->alat_id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus alat ini?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-600 hover:text-red-900">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                        <td colspan="7" class="px-6 py-4 text-center text-gray-500">
                             Belum ada data alat. Klik tombol "Tambah Alat" untuk menambahkan.
                         </td>
                     </tr>
@@ -71,53 +93,73 @@
         </table>
     </div>
 
-    <!-- Modal Tambah Alat -->
+    <!-- Modal Tambah/Edit Alat -->
     <div id="alatModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-900">Tambah Alat</h3>
+                <h3 id="modalTitle" class="text-lg font-bold text-gray-900">Tambah Alat</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
-            <form action="{{ route('alat.store') }}" method="POST">
+            <form id="alatForm" method="POST" action="{{ route('alat.store') }}">
                 @csrf
+                <input type="hidden" id="methodField" name="_method" value="POST">
                 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Nama Alat</label>
-                    <input type="text" name="nama_alat" required 
+                    <input type="text" id="nama_alat" name="nama_alat" required 
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Kategori</label>
-                    <select name="kategori" required 
+                    <select id="kategori_id" name="kategori_id" required 
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Pilih Kategori</option>
-                        <option value="Elektronik">Elektronik</option>
-                        <option value="Mekanik">Mekanik</option>
-                        <option value="Listrik">Listrik</option>
-                        <option value="Konstruksi">Konstruksi</option>
-                        <option value="Lainnya">Lainnya</option>
+                        @foreach(\App\Models\Kategori::all() as $kat)
+                            <option value="{{ $kat->kategori_id }}">{{ $kat->nama_kategori }}</option>
+                        @endforeach
                     </select>
                 </div>
 
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Jumlah</label>
-                    <input type="number" name="jumlah" min="1" required 
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Kode Alat</label>
+                    <input type="text" id="kode_alat" name="kode_alat" required 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Contoh: ALAT-001">
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Stok Total</label>
+                    <input type="number" id="stok_total" name="stok_total" min="1" required 
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
-                <div class="mb-6">
+                <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Kondisi</label>
-                    <select name="kondisi" required 
+                    <select id="kondisi" name="kondisi" required 
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="">Pilih Kondisi</option>
-                        <option value="Baik">Baik</option>
-                        <option value="Rusak Ringan">Rusak Ringan</option>
-                        <option value="Rusak Berat">Rusak Berat</option>
+                        <option value="baik">Baik</option>
+                        <option value="rusak">Rusak</option>
+                        <option value="hilang">Hilang</option>
                     </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Lokasi</label>
+                    <input type="text" id="lokasi" name="lokasi" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Contoh: Gudang A">
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Deskripsi</label>
+                    <textarea id="deskripsi" name="deskripsi" rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Deskripsi alat"></textarea>
                 </div>
 
                 <div class="flex space-x-2">
@@ -137,10 +179,34 @@
     <script>
         function openModal() {
             document.getElementById('alatModal').classList.remove('hidden');
+            document.getElementById('modalTitle').textContent = 'Tambah Alat';
+            document.getElementById('alatForm').action = '{{ route("alat.store") }}';
+            document.getElementById('methodField').value = 'POST';
+            document.getElementById('nama_alat').value = '';
+            document.getElementById('kategori_id').value = '';
+            document.getElementById('kode_alat').value = '';
+            document.getElementById('stok_total').value = '';
+            document.getElementById('kondisi').value = '';
+            document.getElementById('lokasi').value = '';
+            document.getElementById('deskripsi').value = '';
         }
 
         function closeModal() {
             document.getElementById('alatModal').classList.add('hidden');
+        }
+
+        function editAlat(id, data) {
+            document.getElementById('alatModal').classList.remove('hidden');
+            document.getElementById('modalTitle').textContent = 'Edit Alat';
+            document.getElementById('alatForm').action = '/alat/' + id;
+            document.getElementById('methodField').value = 'PUT';
+            document.getElementById('nama_alat').value = data.nama_alat;
+            document.getElementById('kategori_id').value = data.kategori_id;
+            document.getElementById('kode_alat').value = data.kode_alat;
+            document.getElementById('stok_total').value = data.stok_total;
+            document.getElementById('kondisi').value = data.kondisi;
+            document.getElementById('lokasi').value = data.lokasi || '';
+            document.getElementById('deskripsi').value = data.deskripsi || '';
         }
 
         // Close modal when clicking outside

@@ -26,13 +26,13 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($kategori as $item)
                 <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">{{ $item['nama_kategori'] }}</h3>
-                    <p class="text-gray-600 text-sm mb-4">{{ $item['deskripsi'] }}</p>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">{{ $item->nama_kategori }}</h3>
+                    <p class="text-gray-600 text-sm mb-4">{{ $item->deskripsi }}</p>
                     <div class="flex space-x-3 text-sm">
-                        <button class="text-blue-600 hover:text-blue-900 font-medium">
+                        <button onclick="editKategori({{ $item->kategori_id }}, '{{ addslashes($item->nama_kategori) }}', '{{ addslashes($item->deskripsi) }}')" class="text-blue-600 hover:text-blue-900 font-medium">
                             Edit
                         </button>
-                        <form action="{{ route('kategori.destroy', $item['id']) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus kategori ini?')">
+                        <form action="{{ route('kategori.destroy', $item->kategori_id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus kategori ini?')">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="text-red-600 hover:text-red-900 font-medium">
@@ -51,29 +51,30 @@
         </div>
     @endif
 
-    <!-- Modal Tambah Kategori -->
+    <!-- Modal Tambah/Edit Kategori -->
     <div id="kategoriModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-900">Tambah Kategori</h3>
+                <h3 id="modalTitle" class="text-lg font-bold text-gray-900">Tambah Kategori</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
-            <form action="{{ route('kategori.store') }}" method="POST">
+            <form id="kategoriForm" method="POST" action="{{ route('kategori.store') }}">
                 @csrf
+                <input type="hidden" id="methodField" name="_method" value="POST">
                 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Nama Kategori</label>
-                    <input type="text" name="nama_kategori" required 
+                    <input type="text" id="nama_kategori" name="nama_kategori" required 
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Contoh: Elektronik">
                 </div>
 
                 <div class="mb-6">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Deskripsi</label>
-                    <textarea name="deskripsi" rows="4" required 
+                    <textarea id="deskripsi" name="deskripsi" rows="4" required 
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Deskripsi kategori"></textarea>
                 </div>
@@ -95,10 +96,24 @@
     <script>
         function openModal() {
             document.getElementById('kategoriModal').classList.remove('hidden');
+            document.getElementById('modalTitle').textContent = 'Tambah Kategori';
+            document.getElementById('kategoriForm').action = '{{ route("kategori.store") }}';
+            document.getElementById('methodField').value = 'POST';
+            document.getElementById('nama_kategori').value = '';
+            document.getElementById('deskripsi').value = '';
         }
 
         function closeModal() {
             document.getElementById('kategoriModal').classList.add('hidden');
+        }
+
+        function editKategori(id, nama, deskripsi) {
+            document.getElementById('kategoriModal').classList.remove('hidden');
+            document.getElementById('modalTitle').textContent = 'Edit Kategori';
+            document.getElementById('kategoriForm').action = '/kategori/' + id;
+            document.getElementById('methodField').value = 'PUT';
+            document.getElementById('nama_kategori').value = nama;
+            document.getElementById('deskripsi').value = deskripsi;
         }
 
         // Close modal when clicking outside

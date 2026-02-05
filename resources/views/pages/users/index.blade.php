@@ -27,41 +27,28 @@
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Username</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Lengkap</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Level</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 @forelse($users as $user)
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $user['username'] }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $user['nama_lengkap'] }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $user['email'] }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $user->username }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                @if($user['role'] == 'Admin') bg-red-100 text-red-800
-                                @elseif($user['role'] == 'Petugas') bg-blue-100 text-blue-800
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full capitalize
+                                @if($user->level == 'admin') bg-red-100 text-red-800
+                                @elseif($user->level == 'petugas') bg-blue-100 text-blue-800
                                 @else bg-green-100 text-green-800
                                 @endif">
-                                {{ $user['role'] }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                @if($user['status'] == 'Aktif') bg-green-100 text-green-800
-                                @else bg-gray-100 text-gray-800
-                                @endif">
-                                {{ $user['status'] }}
+                                {{ $user->level }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-3">
-                            <button class="text-blue-600 hover:text-blue-900" title="Edit">
+                            <button onclick="editUser({{ $user->user_id }}, '{{ $user->username }}', '{{ $user->level }}')" class="text-blue-600 hover:text-blue-900" title="Edit">
                                 Edit
                             </button>
-                            <form action="{{ route('users.destroy', $user['id']) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus user ini?')">
+                            <form action="{{ route('users.destroy', $user->user_id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus user ini?')">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="text-red-600 hover:text-red-900" title="Hapus">
@@ -72,7 +59,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                        <td colspan="3" class="px-6 py-8 text-center text-gray-500">
                             <i class="fas fa-users text-4xl text-gray-300 mb-2"></i>
                             <p>Belum ada data user.</p>
                             <p class="text-sm">Klik tombol "Tambah User" untuk menambahkan.</p>
@@ -83,54 +70,42 @@
         </table>
     </div>
 
-    <!-- Modal Tambah User -->
+    <!-- Modal Tambah/Edit User -->
     <div id="userModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
         <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold text-gray-900">Tambah User</h3>
+                <h3 id="modalTitle" class="text-lg font-bold text-gray-900">Tambah User</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
-            <form action="{{ route('users.store') }}" method="POST">
+            <form id="userForm" method="POST" action="{{ route('users.store') }}">
                 @csrf
+                <input type="hidden" id="methodField" name="_method" value="POST">
+                <input type="hidden" id="userId" name="user_id">
                 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
-                    <input type="text" name="username" required 
+                    <input type="text" id="username" name="username" required 
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Username">
                 </div>
 
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Nama Lengkap</label>
-                    <input type="text" name="nama_lengkap" required 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Nama lengkap">
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input type="email" name="email" required 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="email@example.com">
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Role</label>
-                    <select name="role" required 
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Level</label>
+                    <select id="level" name="level" required 
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Pilih Role</option>
-                        <option value="Admin">Admin</option>
-                        <option value="Petugas">Petugas</option>
-                        <option value="Peminjam">Peminjam</option>
+                        <option value="">Pilih Level</option>
+                        <option value="admin">Admin</option>
+                        <option value="petugas">Petugas</option>
+                        <option value="peminjam">Peminjam</option>
                     </select>
                 </div>
 
                 <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                    <input type="password" name="password" required minlength="6"
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Password <span id="passwordOptional" class="text-xs text-gray-500"></span></label>
+                    <input type="password" id="password" name="password" minlength="6"
                         class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Minimal 6 karakter">
                 </div>
@@ -152,10 +127,32 @@
     <script>
         function openModal() {
             document.getElementById('userModal').classList.remove('hidden');
+            document.getElementById('modalTitle').textContent = 'Tambah User';
+            document.getElementById('userForm').action = '{{ route("users.store") }}';
+            document.getElementById('methodField').value = 'POST';
+            document.getElementById('userId').value = '';
+            document.getElementById('username').value = '';
+            document.getElementById('level').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('password').required = true;
+            document.getElementById('passwordOptional').textContent = '';
         }
 
         function closeModal() {
             document.getElementById('userModal').classList.add('hidden');
+        }
+
+        function editUser(id, username, level) {
+            document.getElementById('userModal').classList.remove('hidden');
+            document.getElementById('modalTitle').textContent = 'Edit User';
+            document.getElementById('userForm').action = '/users/' + id;
+            document.getElementById('methodField').value = 'PUT';
+            document.getElementById('userId').value = id;
+            document.getElementById('username').value = username;
+            document.getElementById('level').value = level;
+            document.getElementById('password').value = '';
+            document.getElementById('password').required = false;
+            document.getElementById('passwordOptional').textContent = '(kosongkan jika tidak ingin mengubah)';
         }
 
         // Close modal when clicking outside
