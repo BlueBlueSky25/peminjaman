@@ -14,14 +14,43 @@ class PeminjamanController extends Controller
 {
     public function index()
     {
-        $peminjaman = Peminjaman::with(['user', 'alat', 'petugas'])->latest()->get();
-        return view('pages.peminjaman.index', compact('peminjaman'));
+        $user = Auth::user();
+        $alats = Alat::where('stok_tersedia', '>', 0)->get();
+        
+        // Untuk Peminjam: tampilkan history peminjamannya
+        if ($user->level == 'peminjam') {
+            $peminjaman = Peminjaman::where('user_id', $user->user_id)
+                ->with(['alat', 'petugas'])
+                ->latest()
+                ->get();
+            
+            return view('pages.peminjaman.index-peminjam', compact('peminjaman', 'alats'));
+        }
+        
+        // Untuk Admin & Petugas: tampilkan dashboard tracking
+        $peminjamanMenunggu = Peminjaman::where('status', 'menunggu')
+            ->with(['user', 'alat'])
+            ->latest()
+            ->get();
+            
+        $peminjamanAktif = Peminjaman::where('status', 'disetujui')
+            ->with(['user', 'alat', 'petugas'])
+            ->latest()
+            ->get();
+            
+        $peminjamanSelesai = Peminjaman::where('status', 'dikembalikan')
+            ->with(['user', 'alat', 'petugas'])
+            ->latest()
+            ->limit(10)
+            ->get();
+        
+        return view('pages.peminjaman.index-petugas', compact('peminjamanMenunggu', 'peminjamanAktif', 'peminjamanSelesai'));
     }
 
     public function create()
     {
         $alats = Alat::where('stok_tersedia', '>', 0)->get();
-        $users = User::where('level', 'Peminjam')->get();
+        $users = User::where('level', 'peminjam')->get();
         return view('pages.peminjaman.create', compact('alats', 'users'));
     }
 
@@ -36,22 +65,17 @@ class PeminjamanController extends Controller
             'tujuan_peminjaman' => 'nullable|string',
         ]);
 
-        // Cek stok tersedia
         $alat = Alat::findOrFail($request->alat_id);
         if ($alat->stok_tersedia < $request->jumlah) {
             return back()->withErrors(['jumlah' => 'Stok alat tidak mencukupi!']);
         }
 
         DB::transaction(function () use ($validated, $alat) {
-            // Buat peminjaman
-            $validated['status'] = 'menunggu'; // Update
+            $validated['status'] = 'menunggu';
             Peminjaman::create($validated);
-
-            // Kurangi stok tersedia
             $alat->decrement('stok_tersedia', $validated['jumlah']);
         });
 
-        // Log aktivitas
         LogAktivitas::create([
             'user_id' => Auth::id(),
             'aktivitas' => 'Tambah Peminjaman',
@@ -65,23 +89,20 @@ class PeminjamanController extends Controller
     public function update(Request $request, Peminjaman $peminjaman)
     {
         $validated = $request->validate([
-            'status' => 'required|in:menunggu,disetujui,ditolak,dikembalikan', // Update
+            'status' => 'required|in:menunggu,disetujui,ditolak,dikembalikan',
         ]);
 
-        // Jika disetujui, catat petugas dan waktu
         if ($request->status == 'disetujui' && $peminjaman->status != 'disetujui') {
             $validated['disetujui_oleh'] = Auth::id();
             $validated['tanggal_disetujui'] = now();
         }
 
-        // Jika ditolak, kembalikan stok
         if ($request->status == 'ditolak' && $peminjaman->status != 'ditolak') {
             $peminjaman->alat->increment('stok_tersedia', $peminjaman->jumlah);
         }
 
         $peminjaman->update($validated);
 
-        // Log aktivitas
         LogAktivitas::create([
             'user_id' => Auth::id(),
             'aktivitas' => 'Update Status Peminjaman',
@@ -94,14 +115,12 @@ class PeminjamanController extends Controller
 
     public function destroy(Peminjaman $peminjaman)
     {
-        // Kembalikan stok jika belum dikembalikan
         if ($peminjaman->status != 'dikembalikan') {
             $peminjaman->alat->increment('stok_tersedia', $peminjaman->jumlah);
         }
 
         $peminjaman->delete();
 
-        // Log aktivitas
         LogAktivitas::create([
             'user_id' => Auth::id(),
             'aktivitas' => 'Hapus Peminjaman',
@@ -120,7 +139,6 @@ class PeminjamanController extends Controller
             'tanggal_disetujui' => now(),
         ]);
 
-        // Log aktivitas
         LogAktivitas::create([
             'user_id' => Auth::id(),
             'aktivitas' => 'Menyetujui Peminjaman',

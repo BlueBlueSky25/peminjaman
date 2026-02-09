@@ -4,9 +4,12 @@
 
 @section('content')
     <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">Daftar Alat</h2>
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Daftar Alat</h2>
+            <p class="text-sm text-gray-600 mt-1">Kelola dan pantau ketersediaan alat</p>
+        </div>
         @if(auth()->user()->level == 'admin')
-            <button onclick="openModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition">
+            <button onclick="openModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition shadow-sm">
                 <i class="fas fa-plus"></i>
                 <span>Tambah Alat</span>
             </button>
@@ -34,64 +37,168 @@
         </div>
     @endif
 
-    <!-- Table -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Alat</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kategori</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kode Alat</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Stok Total</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tersedia</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kondisi</th>
-                    @if(auth()->user()->level == 'admin')
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
-                    @endif
-                </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-                @forelse($alats as $alat)
-                    <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $alat->nama_alat }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $alat->kategori->nama_kategori ?? '-' }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $alat->kode_alat }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $alat->stok_total }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $alat->stok_tersedia }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize
-                                @if($alat->kondisi == 'baik') bg-green-100 text-green-800
-                                @elseif($alat->kondisi == 'rusak') bg-yellow-100 text-yellow-800
-                                @else bg-red-100 text-red-800
-                                @endif">
-                                {{ $alat->kondisi }}
-                            </span>
-                        </td>
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-600 uppercase">Total Alat</p>
+                    <p class="text-2xl font-bold text-gray-800">{{ $alats->count() }}</p>
+                </div>
+                <i class="fas fa-boxes text-3xl text-blue-500"></i>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-600 uppercase">Stok Tersedia</p>
+                    <p class="text-2xl font-bold text-green-600">{{ $alats->sum('stok_tersedia') }}</p>
+                </div>
+                <i class="fas fa-check-circle text-3xl text-green-500"></i>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-600 uppercase">Sedang Dipinjam</p>
+                    <p class="text-2xl font-bold text-yellow-600">{{ $alats->sum('stok_total') - $alats->sum('stok_tersedia') }}</p>
+                </div>
+                <i class="fas fa-hand-holding text-3xl text-yellow-500"></i>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-gray-600 uppercase">Stok Habis</p>
+                    <p class="text-2xl font-bold text-red-600">{{ $alats->where('stok_tersedia', 0)->count() }}</p>
+                </div>
+                <i class="fas fa-exclamation-triangle text-3xl text-red-500"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Grid View -->
+    @if($alats->count() > 0)
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            @foreach($alats as $alat)
+                <div class="bg-white rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden">
+                    <!-- Header Card -->
+                    <div class="bg-gradient-to-r from-blue-500 to-blue-600 p-4 text-white">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h3 class="font-bold text-lg mb-1">{{ $alat->nama_alat }}</h3>
+                                <p class="text-sm opacity-90">{{ $alat->kategori->nama_kategori ?? '-' }}</p>
+                            </div>
+                            <div class="ml-2">
+                                <span class="px-2 py-1 text-xs rounded-full font-semibold capitalize
+                                    @if($alat->kondisi == 'baik') bg-green-100 text-green-800
+                                    @elseif($alat->kondisi == 'rusak') bg-yellow-100 text-yellow-800
+                                    @else bg-red-100 text-red-800
+                                    @endif">
+                                    {{ $alat->kondisi }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Body Card -->
+                    <div class="p-4">
+                        <!-- Kode & Lokasi -->
+                        <div class="flex items-center text-sm text-gray-600 mb-3">
+                            <i class="fas fa-barcode w-5"></i>
+                            <span class="ml-2">{{ $alat->kode_alat }}</span>
+                            @if($alat->lokasi)
+                                <i class="fas fa-map-marker-alt w-5 ml-4"></i>
+                                <span class="ml-2">{{ $alat->lokasi }}</span>
+                            @endif
+                        </div>
+
+                        <!-- Stok Info -->
+                        <div class="bg-gray-50 rounded-lg p-3 mb-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm text-gray-600">Ketersediaan Stok</span>
+                                <span class="text-sm font-semibold 
+                                    @if($alat->stok_tersedia == 0) text-red-600
+                                    @elseif($alat->stok_tersedia < ($alat->stok_total * 0.3)) text-yellow-600
+                                    @else text-green-600
+                                    @endif">
+                                    {{ $alat->stok_tersedia }} / {{ $alat->stok_total }}
+                                </span>
+                            </div>
+                            
+                            <!-- Progress Bar -->
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                @php
+                                    $percentage = $alat->stok_total > 0 ? ($alat->stok_tersedia / $alat->stok_total) * 100 : 0;
+                                @endphp
+                                <div class="h-2.5 rounded-full transition-all
+                                    @if($percentage == 0) bg-red-500
+                                    @elseif($percentage < 30) bg-yellow-500
+                                    @else bg-green-500
+                                    @endif" 
+                                    style="width: {{ $percentage }}%">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status Badges -->
+                        <div class="flex items-center gap-2 mb-3">
+                            @if($alat->stok_tersedia == 0)
+                                <span class="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-semibold">
+                                    <i class="fas fa-times-circle"></i> Stok Habis
+                                </span>
+                            @elseif($alat->stok_tersedia < ($alat->stok_total * 0.3))
+                                <span class="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded-full font-semibold">
+                                    <i class="fas fa-exclamation-circle"></i> Stok Menipis
+                                </span>
+                            @else
+                                <span class="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full font-semibold">
+                                    <i class="fas fa-check-circle"></i> Tersedia
+                                </span>
+                            @endif
+
+                            @if($alat->stok_tersedia < $alat->stok_total)
+                                <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                                    {{ $alat->stok_total - $alat->stok_tersedia }} Dipinjam
+                                </span>
+                            @endif
+                        </div>
+
+                        <!-- Deskripsi -->
+                        @if($alat->deskripsi)
+                            <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ $alat->deskripsi }}</p>
+                        @endif
+
+                        <!-- Actions -->
                         @if(auth()->user()->level == 'admin')
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                                <button onclick="editAlat({{ $alat->alat_id }}, {{ json_encode($alat) }})" class="text-blue-600 hover:text-blue-900">
-                                    <i class="fas fa-edit"></i>
+                            <div class="flex gap-2 pt-3 border-t">
+                                <button onclick="editAlat({{ $alat->alat_id }}, {{ json_encode($alat) }})" 
+                                    class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded text-sm font-medium transition">
+                                    <i class="fas fa-edit"></i> Edit
                                 </button>
-                                <form action="{{ route('alat.destroy', $alat->alat_id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus alat ini?')">
+                                <form action="{{ route('alat.destroy', $alat->alat_id) }}" method="POST" class="flex-1" onsubmit="return confirm('Yakin ingin menghapus alat ini?')">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:text-red-900">
-                                        <i class="fas fa-trash"></i>
+                                    <button type="submit" class="w-full bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded text-sm font-medium transition">
+                                        <i class="fas fa-trash"></i> Hapus
                                     </button>
                                 </form>
-                            </td>
+                            </div>
                         @endif
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="7" class="px-6 py-4 text-center text-gray-500">
-                            Belum ada data alat. Klik tombol "Tambah Alat" untuk menambahkan.
-                        </td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @else
+        <div class="bg-white rounded-lg shadow p-12 text-center">
+            <i class="fas fa-boxes text-6xl text-gray-300 mb-4"></i>
+            <p class="text-gray-500 text-lg mb-2">Belum ada data alat</p>
+            <p class="text-gray-400 text-sm">Klik tombol "Tambah Alat" untuk menambahkan alat baru.</p>
+        </div>
+    @endif
 
     <!-- Modal Tambah/Edit Alat -->
     <div id="alatModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">

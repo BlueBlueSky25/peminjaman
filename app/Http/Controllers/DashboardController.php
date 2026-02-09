@@ -12,10 +12,13 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        $userLevel = strtolower(auth()->user()->level);
+        
+        // Data KPI
         $totalUsers = User::count();
         $totalAlat = Alat::sum('stok_total');
-        $peminjamanPending = Peminjaman::where('status', 'menunggu')->count(); // Update
-        $peminjamanAktif = Peminjaman::where('status', 'disetujui')->count(); // Update
+        $peminjamanPending = Peminjaman::where('status', 'menunggu')->count();
+        $peminjamanAktif = Peminjaman::where('status', 'disetujui')->count();
         $totalPengembalian = Pengembalian::count();
         $totalDenda = Pengembalian::sum('total_denda');
 
@@ -25,7 +28,8 @@ class DashboardController extends Controller
             'peminjamanPending',
             'peminjamanAktif',
             'totalPengembalian',
-            'totalDenda'
+            'totalDenda',
+            'userLevel'
         ));
     }
 }

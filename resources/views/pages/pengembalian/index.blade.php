@@ -1,14 +1,19 @@
 @extends('layouts.app')
 
-@section('title', 'Data Pengembalian')
+@section('title', 'Pengembalian Alat')
 
 @section('content')
     <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">Data Pengembalian</h2>
-        <button onclick="openModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition">
-            <i class="fas fa-plus"></i>
-            <span>Proses Pengembalian</span>
-        </button>
+        <div>
+            <h2 class="text-2xl font-bold text-gray-800">Pengembalian Alat</h2>
+            <p class="text-sm text-gray-600 mt-1">Kelola proses pengembalian alat yang dipinjam</p>
+        </div>
+        @if(auth()->user()->level == 'admin' || auth()->user()->level == 'petugas' || auth()->user()->level == 'peminjam')
+            <button onclick="openModal()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition shadow-sm">
+                <i class="fas fa-undo"></i>
+                <span>Proses Pengembalian</span>
+            </button>
+        @endif
     </div>
 
     <!-- Success Message -->
@@ -18,6 +23,17 @@
             <button onclick="this.parentElement.remove()" class="text-green-700 hover:text-green-900">
                 <i class="fas fa-times"></i>
             </button>
+        </div>
+    @endif
+
+    <!-- Error Messages -->
+    @if($errors->any())
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <ul class="list-disc list-inside">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
         </div>
     @endif
 
@@ -32,42 +48,71 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kondisi</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Terlambat</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Denda</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status Denda</th>
+                    @if(auth()->user()->level == 'admin')
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aksi</th>
+                    @endif
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 @forelse($pengembalian as $item)
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $item['peminjam'] }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ $item['alat'] }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ date('d/m/Y', strtotime($item['tgl_kembali'])) }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ $item->peminjaman->user->username ?? '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {{ $item->peminjaman->alat->nama_alat ?? '-' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {{ $item->tanggal_kembali_aktual->format('d/m/Y') }}
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                @if($item['kondisi'] == 'Baik') bg-green-100 text-green-800
-                                @elseif($item['kondisi'] == 'Rusak Ringan') bg-yellow-100 text-yellow-800
+                            <span class="px-2 py-1 text-xs rounded-full font-semibold capitalize
+                                @if($item->kondisi_alat == 'baik') bg-green-100 text-green-800
+                                @elseif($item->kondisi_alat == 'rusak') bg-yellow-100 text-yellow-800
                                 @else bg-red-100 text-red-800
                                 @endif">
-                                {{ $item['kondisi'] }}
+                                {{ $item->kondisi_alat }}
                             </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            @if($item['terlambat'] > 0)
-                                <span class="text-red-600">{{ $item['terlambat'] }} hari</span>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            @if($item->keterlambatan_hari > 0)
+                                <span class="text-red-600 font-medium">{{ $item->keterlambatan_hari }} hari</span>
                             @else
                                 <span class="text-green-600">Tepat waktu</span>
                             @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            @if($item['denda'] > 0)
-                                <span class="text-red-600">Rp {{ number_format($item['denda'], 0, ',', '.') }}</span>
+                            @if($item->total_denda > 0)
+                                <span class="text-red-600">Rp {{ number_format($item->total_denda, 0, ',', '.') }}</span>
                             @else
-                                <span class="text-gray-600">Rp 0</span>
+                                <span class="text-gray-600">-</span>
                             @endif
                         </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs rounded-full font-semibold
+                                @if($item->status_denda == 'lunas') bg-green-100 text-green-800
+                                @else bg-red-100 text-red-800
+                                @endif">
+                                {{ str_replace('_', ' ', ucfirst($item->status_denda)) }}
+                            </span>
+                        </td>
+                        @if(auth()->user()->level == 'admin')
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <form action="{{ route('pengembalian.destroy', $item->pengembalian_id) }}" method="POST" class="inline" onsubmit="return confirm('Yakin ingin menghapus data pengembalian ini?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-600 hover:text-red-900">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        @endif
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
-                            <i class="fas fa-undo text-4xl text-gray-300 mb-2"></i>
+                        <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                            <i class="fas fa-inbox text-4xl text-gray-300 mb-2"></i>
                             <p>Belum ada data pengembalian.</p>
                             <p class="text-sm">Klik tombol "Proses Pengembalian" untuk menambahkan.</p>
                         </td>
@@ -91,39 +136,34 @@
                 @csrf
                 
                 <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Peminjam</label>
-                    <select name="peminjam" required 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Pilih Peminjam</option>
-                        <option value="Administrator">Administrator</option>
-                        <option value="Ahmad Petugas">Ahmad Petugas</option>
-                        <option value="Budi Peminjam">Budi Peminjam</option>
-                        <option value="Citra Mahasiswa">Citra Mahasiswa</option>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Peminjaman</label>
+                    <select name="peminjaman_id" id="peminjaman_select" required 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                        <option value="">Pilih Peminjaman</option>
+                        @foreach(\App\Models\Peminjaman::with(['user', 'alat'])->where('status', 'disetujui')->whereDoesntHave('pengembalian')->get() as $pinjam)
+                            <option value="{{ $pinjam->peminjaman_id }}" 
+                                data-jatuh-tempo="{{ $pinjam->tanggal_kembali_rencana->format('Y-m-d') }}"
+                                data-user="{{ $pinjam->user->username }}"
+                                data-alat="{{ $pinjam->alat->nama_alat }}">
+                                {{ $pinjam->user->username }} - {{ $pinjam->alat->nama_alat }} ({{ $pinjam->tanggal_peminjaman->format('d/m/Y') }})
+                            </option>
+                        @endforeach
                     </select>
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Alat</label>
-                    <select name="alat" required 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Pilih Alat</option>
-                        <option value="Laptop Dell">Laptop Dell</option>
-                        <option value="Kamera DSLR Canon">Kamera DSLR Canon</option>
-                        <option value="Bor Listrik Bosch">Bor Listrik Bosch</option>
-                        <option value="Proyektor Epson">Proyektor Epson</option>
-                    </select>
+                    <p id="info_peminjaman" class="text-xs text-gray-500 mt-1"></p>
                 </div>
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Tanggal Kembali</label>
-                    <input type="date" name="tgl_kembali" required 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="date" id="tanggal_kembali" name="tanggal_kembali_aktual" required 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                        value="{{ date('Y-m-d') }}">
+                    <p id="info_keterlambatan" class="text-xs mt-1"></p>
                 </div>
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Kondisi Alat</label>
                     <select name="kondisi_alat" required 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
                         <option value="">Pilih Kondisi</option>
                         <option value="baik">Baik</option>
                         <option value="rusak">Rusak</option>
@@ -131,24 +171,17 @@
                     </select>
                 </div>
 
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Terlambat (hari)</label>
-                    <input type="number" name="terlambat" min="0" value="0" required 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        oninput="hitungDenda()">
-                </div>
-
                 <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Denda (Rp)</label>
-                    <input type="number" name="denda" min="0" value="0" required 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <p class="text-xs text-gray-500 mt-1">Denda Rp 5.000 per hari keterlambatan</p>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Keterangan</label>
+                    <textarea name="keterangan" rows="3"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder="Catatan tambahan (opsional)"></textarea>
                 </div>
 
                 <div class="flex space-x-2">
                     <button type="submit" 
-                        class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg transition">
-                        Simpan
+                        class="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg transition">
+                        Proses
                     </button>
                     <button type="button" onclick="closeModal()" 
                         class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg transition">
@@ -168,12 +201,39 @@
             document.getElementById('pengembalianModal').classList.add('hidden');
         }
 
-        function hitungDenda() {
-            const terlambat = document.querySelector('input[name="terlambat"]').value;
-            const dendaPerHari = 5000;
-            const totalDenda = terlambat * dendaPerHari;
-            document.querySelector('input[name="denda"]').value = totalDenda;
+        // Hitung keterlambatan otomatis
+        const peminjamanSelect = document.getElementById('peminjaman_select');
+        const tanggalKembali = document.getElementById('tanggal_kembali');
+        const infoPeminjaman = document.getElementById('info_peminjaman');
+        const infoKeterlambatan = document.getElementById('info_keterlambatan');
+
+        function hitungKeterlambatan() {
+            const selected = peminjamanSelect.options[peminjamanSelect.selectedIndex];
+            const jatuhTempo = selected.getAttribute('data-jatuh-tempo');
+            const user = selected.getAttribute('data-user');
+            const alat = selected.getAttribute('data-alat');
+            
+            if (jatuhTempo && tanggalKembali.value) {
+                const tempo = new Date(jatuhTempo);
+                const kembali = new Date(tanggalKembali.value);
+                const diff = Math.ceil((kembali - tempo) / (1000 * 60 * 60 * 24));
+                
+                infoPeminjaman.textContent = `${user} - ${alat}`;
+                
+                if (diff > 0) {
+                    const denda = diff * 50000;
+                    infoKeterlambatan.innerHTML = `<span class="text-red-600 font-semibold">Terlambat ${diff} hari. Denda: Rp ${denda.toLocaleString('id-ID')}</span>`;
+                } else {
+                    infoKeterlambatan.innerHTML = `<span class="text-green-600">Tepat waktu</span>`;
+                }
+            } else {
+                infoPeminjaman.textContent = '';
+                infoKeterlambatan.textContent = '';
+            }
         }
+
+        peminjamanSelect.addEventListener('change', hitungKeterlambatan);
+        tanggalKembali.addEventListener('change', hitungKeterlambatan);
 
         // Close modal when clicking outside
         window.onclick = function(event) {

@@ -21,42 +21,99 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login')->middl
 Route::post('/login', [AuthController::class, 'login'])->name('login.post')->middleware('guest');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 
+// ============================================================
+// Protected Routes (Auth Required)
+// ============================================================
+
 // Dashboard - All authenticated users
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 });
 
-// Alat Routes - Admin (Full CRUD) & Peminjam (Read Only)
+// ============================================================
+// ALAT ROUTES
+// ============================================================
 Route::middleware('auth')->group(function () {
     // View alat - Admin & Peminjam bisa akses
-    Route::get('/alat', [AlatController::class, 'index'])->name('alat.index')->middleware('role:admin,peminjam');
+    Route::get('/alat', [AlatController::class, 'index'])
+        ->name('alat.index')
+        ->middleware('role:admin,peminjam');
     
     // CRUD alat - Hanya Admin
-    Route::get('/alat/create', [AlatController::class, 'create'])->name('alat.create')->middleware('role:admin');
-    Route::post('/alat', [AlatController::class, 'store'])->name('alat.store')->middleware('role:admin');
-    Route::get('/alat/{alat}/edit', [AlatController::class, 'edit'])->name('alat.edit')->middleware('role:admin');
-    Route::put('/alat/{alat}', [AlatController::class, 'update'])->name('alat.update')->middleware('role:admin');
-    Route::delete('/alat/{alat}', [AlatController::class, 'destroy'])->name('alat.destroy')->middleware('role:admin');
+    Route::get('/alat/create', [AlatController::class, 'create'])
+        ->name('alat.create')
+        ->middleware('role:admin');
+    Route::post('/alat', [AlatController::class, 'store'])
+        ->name('alat.store')
+        ->middleware('role:admin');
+    Route::get('/alat/{alat}/edit', [AlatController::class, 'edit'])
+        ->name('alat.edit')
+        ->middleware('role:admin');
+    Route::put('/alat/{alat}', [AlatController::class, 'update'])
+        ->name('alat.update')
+        ->middleware('role:admin');
+    Route::delete('/alat/{alat}', [AlatController::class, 'destroy'])
+        ->name('alat.destroy')
+        ->middleware('role:admin');
 });
 
-// Peminjaman Routes
+// ============================================================
+// PEMINJAMAN ROUTES
+// ============================================================
 Route::middleware('auth')->group(function () {
-    // View peminjaman - Semua role
-    Route::get('/peminjaman', [PeminjamanController::class, 'index'])->name('peminjaman.index')->middleware('role:admin,petugas,peminjam');
+    // View peminjaman - Semua role (menampilkan layout berbeda sesuai role)
+    Route::get('/peminjaman', [PeminjamanController::class, 'index'])
+        ->name('peminjaman.index')
+        ->middleware('role:admin,petugas,peminjam');
     
     // Create peminjaman - Admin & Peminjam
-    Route::get('/peminjaman/create', [PeminjamanController::class, 'create'])->name('peminjaman.create')->middleware('role:admin,peminjam');
-    Route::post('/peminjaman', [PeminjamanController::class, 'store'])->name('peminjaman.store')->middleware('role:admin,peminjam');
+    Route::get('/peminjaman/create', [PeminjamanController::class, 'create'])
+        ->name('peminjaman.create')
+        ->middleware('role:admin,peminjam');
     
-    // Update & Delete - Hanya Admin
-    Route::put('/peminjaman/{peminjaman}', [PeminjamanController::class, 'update'])->name('peminjaman.update')->middleware('role:admin');
-    Route::delete('/peminjaman/{peminjaman}', [PeminjamanController::class, 'destroy'])->name('peminjaman.destroy')->middleware('role:admin');
+    Route::post('/peminjaman', [PeminjamanController::class, 'store'])
+        ->name('peminjaman.store')
+        ->middleware('role:admin,peminjam');
     
-    // Approve - Admin & Petugas
-    Route::patch('/peminjaman/{peminjaman}/approve', [PeminjamanController::class, 'approve'])->name('peminjaman.approve')->middleware('role:admin,petugas');
+    // Update Status - Admin & Petugas (untuk reject)
+    Route::put('/peminjaman/{peminjaman}', [PeminjamanController::class, 'update'])
+        ->name('peminjaman.update')
+        ->middleware('role:admin,petugas');
+    
+    // Delete peminjaman - Hanya Admin
+    Route::delete('/peminjaman/{peminjaman}', [PeminjamanController::class, 'destroy'])
+        ->name('peminjaman.destroy')
+        ->middleware('role:admin');
+    
+    // Approve/Reject peminjaman - Admin & Petugas
+    Route::patch('/peminjaman/{peminjaman}/approve', [PeminjamanController::class, 'approve'])
+        ->name('peminjaman.approve')
+        ->middleware('role:admin,petugas');
 });
 
-// Users Routes - Admin Only
+// ============================================================
+// PENGEMBALIAN ROUTES
+// ============================================================
+Route::middleware('auth')->group(function () {
+    // View pengembalian - Semua role
+    Route::get('/pengembalian', [PengembalianController::class, 'index'])
+        ->name('pengembalian.index')
+        ->middleware('role:admin,petugas,peminjam');
+    
+    // Create/Store pengembalian - Admin, Petugas & Peminjam
+    Route::post('/pengembalian', [PengembalianController::class, 'store'])
+        ->name('pengembalian.store')
+        ->middleware('role:admin,petugas,peminjam');
+    
+    // Delete pengembalian - Admin only
+    Route::delete('/pengembalian/{pengembalian}', [PengembalianController::class, 'destroy'])
+        ->name('pengembalian.destroy')
+        ->middleware('role:admin');
+});
+
+// ============================================================
+// USER MANAGEMENT ROUTES - Admin Only
+// ============================================================
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
@@ -64,7 +121,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 });
 
-// Kategori Routes - Admin Only
+// ============================================================
+// KATEGORI ROUTES - Admin Only
+// ============================================================
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/kategori', [KategoriController::class, 'index'])->name('kategori.index');
     Route::post('/kategori', [KategoriController::class, 'store'])->name('kategori.store');
@@ -72,22 +131,16 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::delete('/kategori/{kategori}', [KategoriController::class, 'destroy'])->name('kategori.destroy');
 });
 
-// Pengembalian Routes
-Route::middleware('auth')->group(function () {
-    // View & Create - Semua role
-    Route::get('/pengembalian', [PengembalianController::class, 'index'])->name('pengembalian.index')->middleware('role:admin,petugas,peminjam');
-    Route::post('/pengembalian', [PengembalianController::class, 'store'])->name('pengembalian.store')->middleware('role:admin,petugas,peminjam');
-    
-    // Delete - Admin only
-    Route::delete('/pengembalian/{pengembalian}', [PengembalianController::class, 'destroy'])->name('pengembalian.destroy')->middleware('role:admin');
-});
-
-// Log Aktivitas - Admin Only
+// ============================================================
+// LOG AKTIVITAS ROUTES - Admin Only
+// ============================================================
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/log-aktivitas', [LogAktivitasController::class, 'index'])->name('log.index');
 });
 
-// Laporan Routes - Admin & Petugas
+// ============================================================
+// LAPORAN ROUTES - Admin & Petugas
+// ============================================================
 Route::middleware(['auth', 'role:admin,petugas'])->group(function () {
     Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
     Route::get('/laporan/cetak', [LaporanController::class, 'cetak'])->name('laporan.cetak');
